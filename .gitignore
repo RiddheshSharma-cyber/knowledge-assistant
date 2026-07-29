@@ -1,0 +1,25 @@
+# Environment Secrets 
+.env 
+.env.local 
+ 
+# Python and Virtual Environments 
+venv/ 
+__pycache__/ 
+*.pyc 
+ 
+# Node and React 
+node_modules/ 
+dist/ 
+build/ 
+.vite/ 
+ 
+# Vector Database and Local Data 
+chroma_db/ 
+*.db 
+*.sqlite3 
+ 
+# OS and IDE Files 
+.DS_Store 
+Thumbs.db 
+.vscode/ 
+.idea/ 
