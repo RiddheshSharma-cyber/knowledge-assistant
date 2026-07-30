@@ -23,3 +23,7 @@ chroma_db/
 Thumbs.db 
 .vscode/ 
 .idea/ 
+
+# Vector Database
+chroma_db/
+backend/chroma_db/
