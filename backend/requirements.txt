@@ -3,3 +3,5 @@ uvicorn[standard]>=0.28.0
 pydantic>=2.6.0
 pypdf>=4.0.0
 python-multipart>=0.0.9
+chromadb>=0.4.24
+sentence-transformers>=2.5.0
