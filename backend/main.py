@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from pdf_processor import extract_text_from_pdf, create_chunks
 from vector_store import add_chunks_to_vectorstore, query_vectorstore
+from llm_service import generate_answer
 
 app = FastAPI(
     title="Knowledge Assistant API",
@@ -55,6 +56,23 @@ class QueryResponse(BaseModel):
     results: List[SearchResult]
 
 
+class QARequest(BaseModel):
+    question: str = Field(..., example="What are model manifests in Ollama?")
+    top_k: int = Field(default=3, ge=1, le=10)
+
+
+class SourceCitation(BaseModel):
+    source: str
+    page_number: int
+    snippet: str
+
+
+class QAResponse(BaseModel):
+    question: str
+    answer: str
+    sources: List[SourceCitation]
+
+
 @app.get("/", status_code=status.HTTP_200_OK)
 def read_root():
     return {"message": "Welcome to Knowledge Assistant API Version 1"}
@@ -70,9 +88,6 @@ def health_check():
 
 @app.post("/api/documents/ingest", response_model=IngestResponse, status_code=status.HTTP_200_OK)
 async def ingest_document(file: UploadFile = File(...)):
-    """
-    Upload a PDF document to extract text, chunk it, and store vectors into ChromaDB.
-    """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -108,9 +123,6 @@ async def ingest_document(file: UploadFile = File(...)):
 
 @app.post("/api/documents/search", response_model=QueryResponse, status_code=status.HTTP_200_OK)
 def search_documents(request: QueryRequest):
-    """
-    Perform semantic vector similarity search across ingested documents.
-    """
     try:
         results = query_vectorstore(request.question, n_results=request.top_k)
         return QueryResponse(
@@ -121,4 +133,43 @@ def search_documents(request: QueryRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Search failed: {str(e)}"
+        )
+
+
+@app.post("/api/qa/query", response_model=QAResponse, status_code=status.HTTP_200_OK)
+def ask_question(request: QARequest):
+    """
+    Full RAG Pipeline: Vector Search -> LLM Prompt Construction -> Grounded Answer with Citations.
+    """
+    try:
+        chunks = query_vectorstore(request.question, n_results=request.top_k)
+        
+        if not chunks:
+            return QAResponse(
+                question=request.question,
+                answer="No relevant document content found in the knowledge base.",
+                sources=[]
+            )
+
+        answer = generate_answer(request.question, chunks)
+
+        sources = [
+            SourceCitation(
+                source=chunk["metadata"].get("source", "Unknown"),
+                page_number=chunk["metadata"].get("page_number", 0),
+                snippet=chunk["text"][:150] + "..."
+            )
+            for chunk in chunks
+        ]
+
+        return QAResponse(
+            question=request.question,
+            answer=answer,
+            sources=sources
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"QA pipeline error: {str(e)}"
         )
