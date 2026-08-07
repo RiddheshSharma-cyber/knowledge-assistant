@@ -66,6 +66,9 @@ knowledge-assistant/
 
 ### 1. Backend Setup
 
+Copy .env.example to backend folder and rename it as .env
+In .env add your actual gemini api key there. 
+ 
 1. Open a terminal and navigate to the `backend/` folder:
    ```bash
    cd backend
